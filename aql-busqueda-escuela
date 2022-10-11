@@ -1,0 +1,50 @@
+
+// INICIO TODOS
+LET idiomas = [null,'es','en']
+//LET maximo = 10000
+
+LET todos = (FOR c IN CourseCatNam_VW
+                FILTER c.lang IN idiomas AND c.is_active == true
+                COLLECT source = c.source_id, lang = c.lang INTO group
+                SORT POSITION(idiomas, lang, true)
+                //RETURN i._id
+               // RETURN SLICE(group, 0, maximo)[*].c._id)
+               RETURN group[*].c)
+               
+
+LET name = @name
+LET low_name = LOWER(name)
+
+               
+LET busqueda = (FOR course IN SearchArango
+    FILTER LENGTH(name) > 0 ? NGRAM_MATCH(LOWER(course.name), low_name, 0.7, "bigram") : todos[**]
+    FILTER course.lang IN (idiomas)
+    FILTER course.is_active == true
+    SORT TFIDF(course) DESC
+    COLLECT source = course.source_id, lang = course.lang INTO group
+    SORT POSITION(idiomas, lang, true)
+    RETURN group[*].course)
+
+LET interno = 1
+LET escuela = [5,13]
+LET escuela_str = []
+//LET idiomas = [null,'es','en']
+LET cursos_internos = (FOR ci IN busqueda[**]
+    FILTER ci.source_id == interno && ci.company_id IN escuela_str
+    SORT POSITION(idiomas, ci.lang, true)
+    RETURN ci)
+LET ext = (FOR i IN escuela
+    FILTER i != interno
+    RETURN i)
+LET cursos_externos = (FOR c IN busqueda[**]
+    FILTER c.source_id IN ext
+    RETURN c)
+LET cursos = APPEND(cursos_internos, cursos_externos)
+FOR i IN cursos
+    FILTER i.is_active == true
+    FILTER i.lang IN idiomas
+    SORT POSITION(idiomas, i.lang, true)
+    //RETURN {name:i.name, lang:i.lang,source:i.source_id,company:i.company_id}
+    RETURN {id:i._id, name:i.name,lang:i.lang,source:i.source_id,company:i.company_id}
+
+
